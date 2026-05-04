@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SI-ABSEN | SMK Muhammadiyah 2 Paguyangan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Library untuk QR/Barcode Scan -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Library untuk Export Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Poppins', sans-serif; }
+        .sidebar-link.active { background: #1e40af; border-left: 4px solid #facc15; }
+        .card-stats:hover { transform: translateY(-3px); transition: all 0.2s; }
+        #reader { width: 100% !important; border: none !important; }
+        #reader video { border-radius: 12px; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-blue-900 text-white flex-shrink-0 hidden md:flex flex-col">
+            <div class="p-6 flex flex-col items-center border-b border-blue-800">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-3 text-blue-900 shadow-lg">
+                    <i class="fas fa-school text-3xl"></i>
+                </div>
+                <h1 class="text-sm font-bold text-center leading-tight uppercase">SMK Muhammadiyah 2 Paguyangan</h1>
+            </div>
+            
+            <nav class="flex-grow py-4">
+                <a href="#" onclick="switchPage('dashboard')" class="sidebar-link active flex items-center px-6 py-3 hover:bg-blue-800 transition">
+                    <i class="fas fa-th-large mr-3"></i> Dashboard
+                </a>
+                <a href="#" onclick="switchPage('scan')" class="sidebar-link flex items-center px-6 py-3 hover:bg-blue-800 transition">
+                    <i class="fas fa-qrcode mr-3"></i> Scan Barcode
+                </a>
+                <a href="#" onclick="switchPage('absensi')" class="sidebar-link flex items-center px-6 py-3 hover:bg-blue-800 transition">
+                    <i class="fas fa-user-check mr-3"></i> Input Manual
+                </a>
+                <a href="#" onclick="switchPage('laporan')" class="sidebar-link flex items-center px-6 py-3 hover:bg-blue-800 transition">
+                    <i class="fas fa-file-excel mr-3"></i> Rekap Spreadsheet
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-blue-800">
+                <button class="w-full bg-red-600 hover:bg-red-700 py-2 rounded-lg font-semibold transition">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Keluar
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-grow flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b px-8 py-4 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <button class="md:hidden text-2xl text-blue-900"><i class="fas fa-bars"></i></button>
+                    <h2 id="page-title" class="text-xl font-bold text-gray-700">Dashboard Utama</h2>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right hidden sm:block">
+                        <p class="text-sm font-bold">Admin Kurikulum</p>
+                        <p class="text-xs text-gray-500" id="current-date"></p>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-900 font-bold border border-blue-200">
+                        M2
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div id="content-container" class="p-8 overflow-y-auto">
+                
+                <!-- Dashboard Page -->
+                <div id="page-dashboard">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="card-stats bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-600">
+                            <div class="flex justify-between items-center">
+                                <div><p class="text-sm text-gray-500">Total Siswa</p><p id="dash-total-siswa" class="text-2xl font-bold">0</p></div>
+                                <div class="text-blue-100 text-3xl"><i class="fas fa-user-graduate"></i></div>
+                            </div>
+                        </div>
+                        <div class="card-stats bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                            <div class="flex justify-between items-center">
+                                <div><p class="text-sm text-gray-500">Hadir (Hari Ini)</p><p id="count-hadir" class="text-2xl font-bold text-green-600">0</p></div>
+                                <div class="text-green-100 text-3xl"><i class="fas fa-check-circle"></i></div>
+                            </div>
+                        </div>
+                        <div class="card-stats bg-white p-6 rounded-xl shadow-sm border-l-4 border-yellow-500">
+                            <div class="flex justify-between items-center">
+                                <div><p class="text-sm text-gray-500">Izin/Sakit</p><p id="count-izin" class="text-2xl font-bold text-yellow-600">0</p></div>
+                                <div class="text-yellow-100 text-3xl"><i class="fas fa-envelope"></i></div>
+                            </div>
+                        </div>
+                        <div class="card-stats bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+                            <div class="flex justify-between items-center">
+                                <div><p class="text-sm text-gray-500">Alpa</p><p id="count-alpa" class="text-2xl font-bold text-red-600">0</p></div>
+                                <div class="text-red-100 text-3xl"><i class="fas fa-times-circle"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <h3 class="font-bold mb-4">Daftar Jurusan Aktif</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                                <p class="font-bold text-blue-900">Teknik Jaringan Komputer & Telekomunikasi (TJKT/TKJ)</p>
+                                <p class="text-xs text-blue-600 mt-1">Siswa: X TJKT, XI TKJ, XII TKJ</p>
+                            </div>
+                            <div class="p-4 bg-orange-50 rounded-lg border border-orange-100">
+                                <p class="font-bold text-orange-900">Teknik Otomotif / Sepeda Motor (TO/TSM)</p>
+                                <p class="text-xs text-orange-600 mt-1">Siswa: X TO, XI TSM, XII TSM</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scan Page -->
+                <div id="page-scan" class="hidden">
+                    <div class="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-sm text-center">
+                        <h3 class="text-lg font-bold mb-4 italic">Arahkan Barcode/QR Kartu Siswa ke Kamera</h3>
+                        <div id="reader" class="mb-6 overflow-hidden bg-gray-100 rounded-xl"></div>
+                        <div id="scan-result" class="hidden p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
+                            <p class="text-sm text-blue-600 font-bold">Siswa Terdeteksi:</p>
+                            <p id="scanned-name" class="text-xl font-bold">-</p>
+                            <p id="scanned-nis" class="text-sm text-gray-500">-</p>
+                            <p id="scanned-kelas" class="text-xs font-bold text-blue-800 uppercase mt-1">-</p>
+                        </div>
+                        <div class="flex gap-2 justify-center">
+                            <button onclick="startScanner()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold"><i class="fas fa-camera mr-2"></i> Aktifkan Kamera</button>
+                            <button onclick="stopScanner()" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold">Matikan</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Absensi Page -->
+                <div id="page-absensi" class="hidden">
+                    <div class="bg-white p-6 rounded-xl shadow-sm mb-6">
+                        <div class="flex flex-wrap gap-4 items-end mb-6">
+                            <div class="flex-grow">
+                                <label class="block text-sm font-bold mb-2">Pilih Kelas & Jurusan</label>
+                                <select id="select-kelas" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <optgroup label="Kelas X">
+                                        <option value="X-TJKT">X TJKT (Teknik Jaringan Komputer & Telekomunikasi)</option>
+                                        <option value="X-TO">X TO (Teknik Otomotif)</option>
+                                    </optgroup>
+                                    <optgroup label="Kelas XI">
+                                        <option value="XI-TKJ">XI TKJ (Teknik Komputer & Jaringan)</option>
+                                        <option value="XI-TSM">XI TSM (Teknik Sepeda Motor)</option>
+                                    </optgroup>
+                                    <optgroup label="Kelas XII">
+                                        <option value="XII-TKJ">XII TKJ (Teknik Komputer & Jaringan)</option>
+                                        <option value="XII-TSM">XII TSM (Teknik Sepeda Motor)</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <button onclick="loadStudentsForAbsence()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold"><i class="fas fa-sync mr-2"></i> Tampilkan Siswa</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse" id="table-absensi-data">
+                                <thead>
+                                    <tr class="bg-gray-100 text-sm font-bold">
+                                        <th class="p-3 border w-12 text-center">No</th>
+                                        <th class="p-3 border">Nama Siswa</th>
+                                        <th class="p-3 border text-center">Kehadiran</th>
+                                        <th class="p-3 border">Keterangan / Alasan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="absence-table-body"></tbody>
+                            </table>
+                        </div>
+                        <div class="mt-6 flex justify-end">
+                            <button onclick="saveAbsence()" class="bg-green-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-green-700 transition"><i class="fas fa-save mr-2"></i> Simpan Ke Database</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Laporan Page -->
+                <div id="page-laporan" class="hidden">
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                            <div>
+                                <h3 class="font-bold text-lg">Rekapitulasi Kehadiran</h3>
+                                <p class="text-xs text-gray-500">Data tersimpan otomatis untuk rekap bulanan.</p>
+                            </div>
+                            <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold flex items-center shadow-md transition">
+                                <i class="fas fa-file-excel mr-2 text-xl"></i> Unduh File Spreadsheet (.xlsx)
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left border-collapse" id="report-table">
+                                <thead class="bg-gray-100 font-bold">
+                                    <tr>
+                                        <th class="p-3 border">Waktu</th>
+                                        <th class="p-3 border">Nama Siswa</th>
+                                        <th class="p-3 border">NIS</th>
+                                        <th class="p-3 border">Kelas</th>
+                                        <th class="p-3 border">Status</th>
+                                        <th class="p-3 border">Metode</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="notif-modal" class="fixed inset-0 bg-black/50 hidden z-[100] items-center justify-center">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div id="notif-icon" class="text-5xl mb-4"><i class="fas fa-check-circle"></i></div>
+            <h3 id="notif-title" class="text-xl font-bold mb-2">Sukses!</h3>
+            <p id="notif-msg" class="text-gray-600 mb-6">-</p>
+            <button onclick="closeModal()" class="w-full bg-blue-900 text-white py-3 rounded-xl font-bold">Tutup</button>
+        </div>
+    </div>
+
+    <script>
+        // Data Master Siswa sesuai Kelas yang diminta
+        const siswaData = [
+            // X TJKT
+            { id: 1, name: "Ahmad Jaringan", nis: "23001", kelas: "X-TJKT" },
+            { id: 2, name: "Budi Komputer", nis: "23002", kelas: "X-TJKT" },
+            // X TO
+            { id: 3, name: "Deni Otomotif", nis: "23101", kelas: "X-TO" },
+            { id: 4, name: "Eka Mesin", nis: "23102", kelas: "X-TO" },
+            // XI TKJ
+            { id: 5, name: "Fajar Router", nis: "22001", kelas: "XI-TKJ" },
+            { id: 6, name: "Gita Server", nis: "22002", kelas: "XI-TKJ" },
+            // XI TSM
+            { id: 7, name: "Heri Piston", nis: "22101", kelas: "XI-TSM" },
+            { id: 8, name: "Iwan Karburator", nis: "22102", kelas: "XI-TSM" },
+            // XII TKJ
+            { id: 9, name: "Jaka Firewall", nis: "21001", kelas: "XII-TKJ" },
+            { id: 10, name: "Kiki Fiber", nis: "21002", kelas: "XII-TKJ" },
+            // XII TSM
+            { id: 11, name: "Lulu Injeksi", nis: "21101", kelas: "XII-TSM" },
+            { id: 12, name: "Mono Rantai", nis: "21102", kelas: "XII-TSM" }
+        ];
+
+        let attendanceLog = [];
+        let html5QrCode = null;
+
+        function switchPage(pageId) {
+            document.querySelectorAll('#content-container > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById('page-' + pageId).classList.remove('hidden');
+            
+            const titles = {
+                'dashboard': 'Dashboard Utama',
+                'scan': 'Presensi via Scan Barcode',
+                'absensi': 'Presensi Manual Per Kelas',
+                'laporan': 'Rekapitulasi Kehadiran'
+            };
+            document.getElementById('page-title').innerText = titles[pageId];
+
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active');
+                if(link.getAttribute('onclick').includes(pageId)) link.classList.add('active');
+            });
+            if (pageId !== 'scan' && html5QrCode) stopScanner();
+        }
+
+        // --- SCANNER LOGIC ---
+        function startScanner() {
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+            
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                .catch(err => showModal('Error Kamera', 'Gagal mengakses kamera. Pastikan izin kamera diberikan.', 'fas fa-times-circle', 'text-red-500'));
+        }
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader').innerHTML = "";
+                    document.getElementById('scan-result').classList.add('hidden');
+                }).catch(err => console.error(err));
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            const siswa = siswaData.find(s => s.nis === decodedText);
+            
+            if (siswa) {
+                document.getElementById('scan-result').classList.remove('hidden');
+                document.getElementById('scanned-name').innerText = siswa.name;
+                document.getElementById('scanned-nis').innerText = "NIS: " + siswa.nis;
+                document.getElementById('scanned-kelas').innerText = "Kelas: " + siswa.kelas.replace('-', ' ');
+                
+                // Cek apakah sudah absen hari ini (simulasi unik per hari)
+                const alreadyAbsen = attendanceLog.find(l => l.nis === siswa.nis && l.waktu.includes(new Date().toLocaleDateString()));
+                if(alreadyAbsen) {
+                    showModal('Sudah Absen', `Siswa ${siswa.name} sudah melakukan presensi hari ini.`, 'fas fa-info-circle', 'text-blue-500');
+                    return;
+                }
+
+                recordAttendance(siswa.name, siswa.nis, siswa.kelas, "H", "Barcode Scan");
+                showModal('Absensi Berhasil', `Presensi ${siswa.name} berhasil tercatat.`, 'fas fa-check-circle', 'text-green-500');
+                
+                // Sound effect simulasi
+                const audio = new Audio('https://www.soundjay.com/buttons/beep-07.wav');
+                audio.play().catch(() => {});
+            } else {
+                showModal('Data Tidak Ditemukan', 'Barcode NIS tidak terdaftar di sistem SMK Muh 2.', 'fas fa-exclamation-triangle', 'text-yellow-500');
+            }
+        }
+
+        // --- MANUAL ABSENSI LOGIC ---
+        function loadStudentsForAbsence() {
+            const tbody = document.getElementById('absence-table-body');
+            const kelas = document.getElementById('select-kelas').value;
+            tbody.innerHTML = '';
+            
+            const filteredSiswa = siswaData.filter(s => s.kelas === kelas);
+            
+            if(filteredSiswa.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-400 italic">Data siswa kelas ini belum tersedia.</td></tr>`;
+                return;
+            }
+
+            filteredSiswa.forEach((siswa, index) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 border-b">
+                        <td class="p-3 text-center text-sm font-medium text-gray-500">${index + 1}</td>
+                        <td class="p-3">
+                            <p class="font-bold text-sm text-gray-800">${siswa.name}</p>
+                            <p class="text-[10px] text-gray-400">NIS: ${siswa.nis}</p>
+                        </td>
+                        <td class="p-3">
+                            <div class="flex justify-center gap-1">
+                                ${['H','S','I','A'].map(status => `
+                                    <label class="cursor-pointer group">
+                                        <input type="radio" name="st-${siswa.id}" value="${status}" ${status==='H'?'checked':''} class="hidden peer">
+                                        <span class="w-10 h-9 flex items-center justify-center rounded-lg border-2 border-gray-200 text-xs font-bold peer-checked:border-blue-600 peer-checked:bg-blue-600 peer-checked:text-white transition-all">${status}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </td>
+                        <td class="p-3">
+                            <input type="text" id="note-${siswa.id}" placeholder="Tulis alasan..." class="w-full text-xs border rounded-lg p-2 outline-none focus:border-blue-500 bg-gray-50">
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function saveAbsence() {
+            const kelas = document.getElementById('select-kelas').value;
+            const rows = document.querySelectorAll('#absence-table-body tr');
+            
+            if(rows.length <= 1 && rows[0].innerText.includes('belum tersedia')) return;
+
+            let count = 0;
+            rows.forEach(row => {
+                const nameElement = row.querySelector('.font-bold');
+                if(!nameElement) return;
+
+                const name = nameElement.innerText;
+                const nisText = row.querySelector('.text-gray-400').innerText;
+                const nis = nisText.replace('NIS: ', '');
+                const status = row.querySelector('input[type="radio"]:checked').value;
+                const note = row.querySelector('input[type="text"]').value;
+
+                recordAttendance(name, nis, kelas, status, "Manual Input", note);
+                count++;
+            });
+
+            showModal('Data Tersimpan', `${count} data siswa kelas ${kelas.replace('-', ' ')} telah berhasil diinput ke rekap.`, 'fas fa-save', 'text-green-600');
+        }
+
+        // --- CORE LOGIC ---
+        function recordAttendance(name, nis, kelas, status, method, note = "") {
+            const now = new Date();
+            attendanceLog.push({
+                waktu: now.toLocaleString('id-ID'),
+                nama: name,
+                nis: nis,
+                kelas: kelas.replace('-', ' '),
+                status: status === 'H' ? 'Hadir' : (status === 'S' ? 'Sakit' : (status === 'I' ? 'Izin' : 'Alpa')),
+                keterangan: note || '-',
+                metode: method
+            });
+            updateDashboard();
+            renderReport();
+        }
+
+        function updateDashboard() {
+            document.getElementById('dash-total-siswa').innerText = siswaData.length;
+            document.getElementById('count-hadir').innerText = attendanceLog.filter(l => l.status === 'Hadir').length;
+            document.getElementById('count-izin').innerText = attendanceLog.filter(l => l.status === 'Sakit' || l.status === 'Izin').length;
+            document.getElementById('count-alpa').innerText = attendanceLog.filter(l => l.status === 'Alpa').length;
+        }
+
+        function renderReport() {
+            const body = document.getElementById('report-body');
+            body.innerHTML = '';
+            // Tampilkan dari yang terbaru
+            [...attendanceLog].reverse().forEach(log => {
+                body.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-3 text-gray-500">${log.waktu}</td>
+                        <td class="p-3 font-bold">${log.nama}</td>
+                        <td class="p-3 text-gray-500">${log.nis}</td>
+                        <td class="p-3 font-medium uppercase">${log.kelas}</td>
+                        <td class="p-3"><span class="px-2 py-1 rounded text-[10px] font-bold ${getStatusClass(log.status)}">${log.status.toUpperCase()}</span></td>
+                        <td class="p-3 italic text-gray-400">${log.metode}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function getStatusClass(s) {
+            if(s==='Hadir') return 'bg-green-100 text-green-700';
+            if(s==='Sakit'||s==='Izin') return 'bg-yellow-100 text-yellow-700';
+            return 'bg-red-100 text-red-700';
+        }
+
+        // --- SPREADSHEET EXPORT ---
+        function exportToExcel() {
+            if(attendanceLog.length === 0) {
+                showModal('Data Kosong', 'Belum ada data presensi yang bisa diekspor.', 'fas fa-exclamation-circle', 'text-yellow-500');
+                return;
+            }
+            
+            const worksheet = XLSX.utils.json_to_sheet(attendanceLog);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data_Presensi");
+            
+            const fileName = `REKAP_ABSENSI_SMK_MUH2_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+        }
+
+        function showModal(title, msg, icon, colorClass) {
+            document.getElementById('notif-title').innerText = title;
+            document.getElementById('notif-msg').innerText = msg;
+            document.getElementById('notif-icon').innerHTML = `<i class="${icon}"></i>`;
+            document.getElementById('notif-icon').className = `text-5xl mb-4 ${colorClass}`;
+            document.getElementById('notif-modal').classList.replace('hidden', 'flex');
+        }
+
+        function closeModal() {
+            document.getElementById('notif-modal').classList.replace('flex', 'hidden');
+        }
+
+        // Initialize UI
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        updateDashboard();
+    </script>
+</body>
+</html>
